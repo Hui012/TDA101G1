@@ -748,8 +748,8 @@ pageContext.setAttribute("list", lists);
                                 <ul id="cart_list">
                                     <!--------------- 動態新增 --------------->
                                     <c:forEach var="value" items="${list}">
-                                        <li id="${value.productVO.product_ID}" class="cart_detail" data-date="${value.cust_Schedule_Detail_Date}"
-                                            data-sort="${value.cust_Schedule_Detail_Seq}">
+                                        <li id="${value.productVO.product_ID}" class="cart_detail" 
+                                            data-date="${value.cust_Schedule_Detail_Date}" data-sort="${value.cust_Schedule_Detail_Seq}">
                                             <div class="row" style="padding-left: 15px; padding-right: 15px;">
                                                 <div class="col col-md-6" style="padding-left: 5px;">
                                                     <div class="product_block">
@@ -767,27 +767,34 @@ pageContext.setAttribute("list", lists);
                                                 <div class="col col-md-5" style="padding-right: 0; padding-left: 0;">
                                                     <div class="select_block">
                                                         <c:choose>
-                                                            <c:when test="${not empty value.productVO.productDetailVOs}">
+															<c:when test="${not empty value.productVO.productDetailVOs}">
                                                                 <p id="ticket_date" style="margin: 0;">${value.cust_Schedule_Detail_Date}</p>
                                                                 <p id="stock" class="-none" style="margin: 0; font-size: 16px; line-height: 24px">已達庫存上限</p>
-                                                                <input class="input_quantity" style="margin-top: 15px;"
-                                                                type="number" value="${custVO.cust_Quantity}" name="points" min="1" max="99"></input>
-                                                                <c:forEach var="productDetail" items="${value.productVO.productDetailVOs}" varStatus="status">
-                                                                    <c:if test="${status.first}">
-		                                                                <span style="line-height: 60px;"> NT$ <span id="sum">
-		                                                                	${productDetail.product_Detail_Money * custVO.cust_Quantity}</span>
-		                                                                </span>
-		                                                            </c:if>
-		                                                        </c:forEach>
-	                                                    		<select class="select_options" style="height: 30px; width: 80%;">
-	                                                    			<c:forEach var="productDetail" items="${value.productVO.productDetailVOs}">
-		                                                                <option value="${productDetail.product_Detail_Money}" data-instock="${productDetail.product_Detail_Instock}">
-		                                                                    ${productDetail.product_Detail_Spc}
-		                                                                </option>
-		                                                            </c:forEach>
-	                                                    		</select>
-                                                        	</c:when>
-                                                            <c:otherwise>
+                                                                <c:choose> 
+                                                                    <c:when test="${value.productVO.product_State == 0}">
+                                                                        <p style="line-height: 80px;">※此商品已下架※</p>
+                                                                    </c:when>
+		                                                           	<c:otherwise> 
+                                                                        <input class="input_quantity" style="margin-top: 15px;"
+                                                                        type="number" value="${custVO.cust_Quantity}" name="points" min="1" max="99"></input>
+                                                                        <c:forEach var="productDetail" items="${value.productVO.productDetailVOs}" varStatus="status">
+                                                                            <c:if test="${status.first}">
+                                                                                <span style="line-height: 60px;"> NT$ <span id="sum">
+                                                                                    ${productDetail.product_Detail_Money * custVO.cust_Quantity}</span>
+                                                                                </span>
+                                                                            </c:if>
+                                                                        </c:forEach>
+                                                                        <select class="select_options" style="height: 30px; width: 80%;">
+                                                                            <c:forEach var="productDetail" items="${value.productVO.productDetailVOs}">
+                                                                                <option value="${productDetail.product_Detail_Money}" data-productdetail-ID="${productDetail.product_Detail_ID}" data-instock="${productDetail.product_Detail_Instock}">
+                                                                                    ${productDetail.product_Detail_Spc}        
+                                                                                </option>
+                                                                            </c:forEach>
+                                                                        </select>
+                                                                    </c:otherwise> 
+                                                                </c:choose> 
+                                                        	</c:when>                                             
+                                                        	<c:otherwise>
                                                             	<p style="line-height: 80px;">※此商品無須票券※</p>
                                                             </c:otherwise>
                                                         </c:choose>
@@ -874,6 +881,8 @@ pageContext.setAttribute("list", lists);
     <script src="<%=request.getContextPath()%>/vendors/jquery/jquery-3.4.1.min.js"></script>
     <!-- 日曆 -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <!-- sweetalert -->
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/2.1.2/sweetalert.min.js"></script>
     <script src="<%=request.getContextPath()%>/vendors/js/footer.js"></script>
     <script>
         function initMap(){}
@@ -924,7 +933,62 @@ pageContext.setAttribute("list", lists);
                 }
                 a_day_spent();
             });
+            /*----------------------------選購明細的操作--------------------------------*/
+            $("button#btn_buy").on("click", function(){
+                let member_ID = $("div.top_navbar").data("member-id");
+                let cart = []
+                $("ul#cart_list").find("li").each(function(i, value){
+                    console.log(value)
+                    let product_ID = $(value).attr("id");
+                    let product_Name = $(value).find("div.product_ticket_name p").text();
+                    let productDetail_ID = $(value).find("select option:selected").data("productdetail-id");
+                    let quantity = $(value).find("input.input_quantity").val();
+                    let spc = $(value).find("select option:selected").text().trim();
+                    let start_end = $(value).data("date");
+                    let price = $(value).find("select option:selected").val();
+                    let temp = {
+                        "member_ID":member_ID,
+                        "product_ID":product_ID,
+                        "product_Name":product_Name,
+                        "productDetail_ID":productDetail_ID == undefined? "null":productDetail_ID,
+                        "quantity":quantity == undefined? "null":quantity,
+                        "spc":spc,
+                        "start":start_end,
+                        "end":start_end,
+                        "price":price == undefined? "null":price
+                    }
+                    cart.push(temp);
+                });
+                console.log(cart)
+                
+                $.ajax({
+                    url:"<%=request.getContextPath()%>/project/JsonController",
+                    type:"POST",
+                    data: {
+                        "action":"add_cart",
+                        "cart_list": JSON.stringify(cart)
+                    },
+                    dataType:"json",
+                    success: function (data) {
+                        if(data.result === "success"){
+                            $("ul#cart_list").html("");
+                            $("span#total_price").text(0);
+                            swal({
+                                position: 'top-end',
+                                icon: 'success',
+                                title: '已成功加入購物車',
+                                showConfirmButton: false,
+                                timer: 1500
+                            });
+                        }
+                    },error: function(){
+                        console.log("fail");
+                    }
+                });
 
+            });
+            // String member_ID, String product_ID, String product_Name,
+			// String productDetail_ID, String quantity, String spc, String start, String end, String price
             /*----------------------------刪除購買項目--------------------------------*/
             $("span.trash").on("click", function () {
                 $(this).closest("li").remove();
@@ -1044,7 +1108,7 @@ pageContext.setAttribute("list", lists);
                             check_location_weather_week(location_weather);
                         }
                     },error: function(){
-                        alert(fail)
+                        console.log("fail");
                     }
                 });
             }

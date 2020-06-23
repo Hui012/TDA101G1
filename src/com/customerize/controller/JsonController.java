@@ -33,6 +33,7 @@ import com.customerizedetail.model.CustDetailService;
 import com.customerizedetail.model.CustDetailVO;
 import com.member.model.MemberService;
 import com.member.model.MemberVO;
+import com.product.controller.JedisShoppingCar;
 import com.product.model.ProductService;
 import com.product.model.ProductVO;
 import com.productcmt.model.ProductCmtService;
@@ -306,8 +307,30 @@ public class JsonController extends HttpServlet {
 				}
 				JSONObject json = new JSONObject(searchResult);
 				out.println(json);
-//				System.out.println(searchResult);	
 			}
+		}
+		
+		/*==============================加入購物車==============================*/	
+		if("add_cart".equals(action)) {
+			String cart_list = req.getParameter("cart_list");
+			JSONArray array = new JSONArray(cart_list);
+			for(int i = 0; i < array.length(); i++) {
+				JSONObject obj = array.getJSONObject(i);
+				if(!obj.getString("productDetail_ID").equals("null")) {        //前端有先判斷如不需票券的為"null"
+					String member_ID = obj.getString("member_ID");
+					String product_ID = obj.getString("product_ID");
+					String product_Name = obj.getString("product_Name");
+					String productDetail_ID = obj.getString("productDetail_ID");
+					String quantity = obj.getString("quantity");
+					String spc = obj.getString("spc");
+					String start = obj.getString("start");
+					String end = obj.getString("start");
+					String price = obj.getString("price");
+					JedisShoppingCar shoppingCar = new JedisShoppingCar();
+					shoppingCar.add(member_ID, product_ID, product_Name, productDetail_ID, quantity, spc, start, end, price);
+				}
+			}
+			out.println(new JSONObject().put("result", "success"));
 		}
 
 	}
